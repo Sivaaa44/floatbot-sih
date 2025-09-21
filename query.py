@@ -3,7 +3,7 @@ import yaml
 import duckdb
 
 # Configure Gemini API
-GOOGLE_API_KEY = "AIzaSyDTvaIz5Fuy90QjrLM4y4al78O5UP7KciE"  # Replace with your actual API key
+GOOGLE_API_KEY = ""  # Replace with your actual API key
 genai.configure(api_key=GOOGLE_API_KEY)
 
 def load_semantic_model():
