@@ -1,0 +1,278 @@
+# Argo Float Database Semantic Model - Efficient Structure
+version: 2
+name: argo_floats
+description: "Autonomous oceanographic profiling floats data model"
+
+tables:
+  # =====================================================
+  # FLOAT - Master float metadata
+  # =====================================================
+  float:
+    description: "Master float metadata table"
+    columns:
+      FLOAT_ID:
+        type: varchar
+        primary_key: true
+        description: "Unique float identifier"
+        
+      PLATFORM_NUMBER:
+        type: varchar
+        description: "Platform identification number"
+        
+      PLATFORM_TYPE:
+        type: varchar
+        description: "Type of profiling platform"
+        
+      PLATFORM_MAKER:
+        type: varchar
+        description: "Manufacturer of the float"
+        
+      FLOAT_SERIAL_NO:
+        type: varchar
+        description: "Serial number of the float"
+        
+      PROJECT_NAME:
+        type: varchar
+        description: "Scientific project name"
+        
+      PI_NAME:
+        type: varchar
+        description: "Principal Investigator name"
+        
+      LAUNCH_DATE:
+        type: varchar
+        description: "Float deployment date"
+        
+      LAUNCH_LATITUDE:
+        type: double
+        description: "Deployment latitude"
+        
+      LAUNCH_LONGITUDE:
+        type: double
+        description: "Deployment longitude"
+        
+      START_DATE:
+        type: varchar
+        description: "Mission start date"
+        
+      END_MISSION_DATE:
+        type: varchar
+        description: "Mission end date"
+        
+      BATTERY_TYPE:
+        type: varchar
+        description: "Battery type"
+        
+      FIRMWARE_VERSION:
+        type: varchar
+        description: "Firmware version"
+        
+      DEPLOYMENT_PLATFORM:
+        type: varchar
+        description: "Deployment platform"
+        
+      DEPLOYMENT_CRUISE_ID:
+        type: varchar
+        description: "Deployment cruise ID"
+        
+      FLOAT_OWNER:
+        type: varchar
+        description: "Float owner institution"
+        
+      OPERATING_INSTITUTION:
+        type: varchar
+        description: "Operating institution"
+        
+      DATA_CENTRE:
+        type: varchar
+        description: "Data assembly center"
+        
+      WMO_INST_TYPE:
+        type: varchar
+        description: "WMO instrument type"
+        
+    indexes:
+      - columns: [PROJECT_NAME]
+      - columns: [PLATFORM_TYPE]
+
+  # =====================================================
+  # PROFILES - Profile metadata per dive
+  # =====================================================
+  profiles:
+    description: "Profile metadata for each diving cycle"
+    columns:
+      FLOAT_ID:
+        type: varchar
+        description: "Reference to parent float"
+        
+      PROFILE_NUMBER:
+        type: integer
+        description: "Profile sequence number"
+        
+      CYCLE_NUMBER:
+        type: double
+        description: "Float cycle number"
+        
+      JULD:
+        type: timestamp
+        description: "Profile date and time"
+        
+      LATITUDE:
+        type: double
+        description: "Profile latitude"
+        
+      LONGITUDE:
+        type: double
+        description: "Profile longitude"
+        
+      POSITION_QC:
+        type: varchar
+        description: "Position quality flag"
+        
+      DIRECTION:
+        type: varchar
+        description: "Profile direction (A/D)"
+        
+      DATA_MODE:
+        type: varchar
+        description: "Data mode (R/D/A)"
+        
+      PROFILE_PRES_QC:
+        type: varchar
+        description: "Profile pressure QC flag"
+        
+      PROFILE_TEMP_QC:
+        type: varchar
+        description: "Profile temperature QC flag"
+        
+      PROFILE_PSAL_QC:
+        type: varchar
+        description: "Profile salinity QC flag"
+        
+    primary_key: [FLOAT_ID, PROFILE_NUMBER]
+    
+    foreign_keys:
+      - columns: [FLOAT_ID]
+        references: float(FLOAT_ID)
+        
+    indexes:
+      - columns: [FLOAT_ID, CYCLE_NUMBER]
+      - columns: [JULD]
+      - columns: [LATITUDE, LONGITUDE]
+
+  # =====================================================
+  # MEASUREMENTS - Sensor readings at depth
+  # =====================================================
+  measurements:
+    description: "Individual sensor measurements"
+    columns:
+      FLOAT_ID:
+        type: varchar
+        description: "Reference to parent float"
+        
+      PROFILE_NUMBER:
+        type: integer
+        description: "Reference to parent profile"
+        
+      LEVEL:
+        type: integer
+        description: "Depth level sequence"
+        
+      PRES:
+        type: double
+        description: "Pressure (decibars)"
+        
+      TEMP:
+        type: double
+        description: "Temperature (°C)"
+        
+      PSAL:
+        type: double
+        description: "Salinity (PSU)"
+        
+      PRES_QC:
+        type: varchar
+        description: "Pressure quality flag"
+        
+      TEMP_QC:
+        type: varchar
+        description: "Temperature quality flag"
+        
+      PSAL_QC:
+        type: varchar
+        description: "Salinity quality flag"
+        
+      PRES_ADJUSTED:
+        type: double
+        description: "Adjusted pressure"
+        
+      TEMP_ADJUSTED:
+        type: double
+        description: "Adjusted temperature"
+        
+      PSAL_ADJUSTED:
+        type: double
+        description: "Adjusted salinity"
+        
+      PRES_ADJUSTED_QC:
+        type: varchar
+        description: "Adjusted pressure QC flag"
+        
+      TEMP_ADJUSTED_QC:
+        type: varchar
+        description: "Adjusted temperature QC flag"
+        
+      PSAL_ADJUSTED_QC:
+        type: varchar
+        description: "Adjusted salinity QC flag"
+        
+    foreign_keys:
+      - columns: [FLOAT_ID, PROFILE_NUMBER]
+        references: profiles(FLOAT_ID, PROFILE_NUMBER)
+        
+    indexes:
+      - columns: [FLOAT_ID, PROFILE_NUMBER]
+      - columns: [PRES]
+
+# =====================================================
+# RELATIONSHIPS
+# =====================================================
+relationships:
+  - name: "float_to_profiles"
+    type: "one_to_many"
+    parent: "float.FLOAT_ID"
+    child: "profiles.FLOAT_ID"
+    
+  - name: "profile_to_measurements"
+    type: "one_to_many"
+    parent: "profiles(FLOAT_ID, PROFILE_NUMBER)"
+    child: "measurements(FLOAT_ID, PROFILE_NUMBER)"
+
+# =====================================================
+# COMMON QUERIES
+# =====================================================
+queries:
+  
+  float_complete_data:
+    description: "All data for a specific float"
+    sql: |
+      SELECT f.*, p.*, m.*
+      FROM float f
+      JOIN profiles p ON f.FLOAT_ID = p.FLOAT_ID
+      JOIN measurements m ON p.FLOAT_ID = m.FLOAT_ID 
+                         AND p.PROFILE_NUMBER = m.PROFILE_NUMBER
+      WHERE f.FLOAT_ID = ?
+      ORDER BY p.PROFILE_NUMBER, m.LEVEL
+      
+  specific_profile_data:
+    description: "All measurements for one profile"
+    sql: |
+      SELECT f.PLATFORM_TYPE, f.PROJECT_NAME,
+             p.JULD, p.LATITUDE, p.LONGITUDE,
+             m.PRES, m.TEMP, m.PSAL
+      FROM float f
+      JOIN profiles p ON f.FLOAT_ID = p.FLOAT_ID
+      JOIN measurements m ON p.FLOAT_ID = m.FLOAT_ID 
+                         AND p.PROFILE_NUMBER = m.PROFILE_NUMBER
+      WHERE f.FLOAT_ID = ? AND p.PROFILE_NUMBER = ?
+      ORDER BY m.LEVEL
