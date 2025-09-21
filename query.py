@@ -13,10 +13,12 @@ if not GOOGLE_API_KEY:
     raise ValueError("GOOGLE_API_KEY not found in environment variables")
 genai.configure(api_key=GOOGLE_API_KEY)
 
+
 def load_semantic_model():
     """Load the semantic model from YAML file"""
     with open('argo_semantic_model.yaml', 'r') as file:
         return yaml.safe_load(file)
+
 
 def create_system_prompt(semantic_model):
     """Create a system prompt that explains the database structure and how to generate SQL queries"""
@@ -72,7 +74,14 @@ Database Structure Summary:
 Important Guidelines:
 1. Table names are: float, profiles, measurements (lowercase)
 2. Column names are UPPERCASE (FLOAT_ID, PROFILE_NUMBER, PRES, TEMP, PSAL, etc.)
-3. Always use proper table joins based on relationships:
+3. Text search requirements (CRITICAL):
+   - ALWAYS use LOWER() for case-insensitive text comparisons on:
+     * PI_NAME, PROJECT_NAME, OPERATING_INSTITUTION, FLOAT_OWNER, DEPLOYMENT_PLATFORM
+   - Use exact matches for IDs:
+     * FLOAT_ID, WMO_INST_TYPE, PLATFORM_NUMBER
+   - Use ILIKE for partial matches on:
+     * DEPLOYMENT_CRUISE_ID, STATION_PARAMETERS
+4. Always use proper table joins based on relationships:
    - float.FLOAT_ID = profiles.FLOAT_ID
    - profiles.FLOAT_ID = measurements.FLOAT_ID AND profiles.PROFILE_NUMBER = measurements.PROFILE_NUMBER
 4. For complete float data: JOIN all three tables
@@ -89,11 +98,63 @@ Important Guidelines:
 13. Use TEMP, PSAL columns for temperature and salinity
 14. Consider using adjusted values (*_ADJUSTED columns) for scientific accuracy
 
-Example Query Patterns:
-- All data for a float: SELECT * FROM float f JOIN profiles p ON f.FLOAT_ID = p.FLOAT_ID JOIN measurements m ON p.FLOAT_ID = m.FLOAT_ID AND p.PROFILE_NUMBER = m.PROFILE_NUMBER WHERE f.FLOAT_ID = 'floatid'
-- Profile summary: SELECT f.FLOAT_ID, COUNT(DISTINCT p.PROFILE_NUMBER) as profiles FROM float f JOIN profiles p ON f.FLOAT_ID = p.FLOAT_ID GROUP BY f.FLOAT_ID
+Text Search Guidelines:
+1. For case-insensitive text searches on names and descriptions:
+   - PI_NAME: Always use LOWER() function on both sides
+   - PROJECT_NAME: Always use LOWER() function on both sides
+   - OPERATING_INSTITUTION: Always use LOWER() function on both sides
+   - FLOAT_OWNER: Always use LOWER() function on both sides
+   - DEPLOYMENT_PLATFORM: Always use LOWER() function on both sides
 
-Generate only the SQL query without any explanations. The query should be valid DuckDB SQL syntax."""
+2. For exact ID matches (case-sensitive):
+   - FLOAT_ID
+   - WMO_INST_TYPE
+   - PLATFORM_NUMBER
+
+3. For partial text matches:
+   - DEPLOYMENT_CRUISE_ID: Use ILIKE with wildcards
+   - STATION_PARAMETERS: Use ILIKE with wildcards
+
+4. Date format handling:
+   - For float table (LAUNCH_DATE, START_DATE, END_MISSION_DATE):
+     * Format: YYYYMMDDHHMMSS (string)
+     * Example: '20210305225500'
+     * Compare directly as strings: WHERE date_column >= '20200101000000'
+   - For profiles table (JULD):
+     * Format: YYYY-MM-DD HH:MM:SS
+     * Example: '2021-03-06 00:45:00'
+     * Use direct timestamp comparison: WHERE JULD >= '2020-01-01 00:00:00'
+
+Example Query Patterns:
+- All data for a float: 
+  SELECT * FROM float f 
+  JOIN profiles p ON f.FLOAT_ID = p.FLOAT_ID 
+  JOIN measurements m ON p.FLOAT_ID = m.FLOAT_ID AND p.PROFILE_NUMBER = m.PROFILE_NUMBER 
+  WHERE f.FLOAT_ID = 'floatid'
+
+- Case-insensitive name search:
+  SELECT * FROM float 
+  WHERE LOWER(PI_NAME) = LOWER('Xavier CAPET')
+
+  - Partial text search:
+  SELECT * FROM float 
+  WHERE DEPLOYMENT_CRUISE_ID ILIKE '%PIRATA%'
+
+- Date range search for float dates (YYYYMMDDHHMMSS format):
+  SELECT * FROM float 
+  WHERE LAUNCH_DATE >= '20200101000000' 
+  AND LAUNCH_DATE < '20210101000000'
+
+- Date range search for profile dates (YYYY-MM-DD HH:MM:SS format):
+  SELECT * FROM profiles 
+  WHERE JULD >= '2020-01-01 00:00:00' 
+  AND JULD < '2021-01-01 00:00:00'
+
+- Profile summary: 
+  SELECT f.FLOAT_ID, COUNT(DISTINCT p.PROFILE_NUMBER) as profiles 
+  FROM float f 
+  JOIN profiles p ON f.FLOAT_ID = p.FLOAT_ID 
+  GROUP BY f.FLOAT_IDGenerate only the SQL query without any explanations. The query should be valid DuckDB SQL syntax."""
 
     return system_prompt
 

@@ -276,3 +276,50 @@ queries:
                          AND p.PROFILE_NUMBER = m.PROFILE_NUMBER
       WHERE f.FLOAT_ID = ? AND p.PROFILE_NUMBER = ?
       ORDER BY m.LEVEL
+# =====================================================
+# INSTRUCTIONS
+# =====================================================
+instructions:
+  case_normalization:
+    - fields: 
+      - PROJECT_NAME
+      - PI_NAME
+      - OPERATING_INSTITUTION
+      - FLOAT_OWNER
+      - DEPLOYMENT_PLATFORM
+      normalize: lower
+      sample_query: |
+        -- Example for case-insensitive PI name search
+        SELECT * FROM float 
+        WHERE LOWER(PI_NAME) = LOWER('Xavier CAPET')
+    
+  text_matching:
+    - type: exact
+      fields: [FLOAT_ID, WMO_INST_TYPE, PLATFORM_NUMBER]
+      description: "Use exact matching for IDs and codes"
+      
+    - type: fuzzy
+      fields: [PROJECT_NAME, PI_NAME, OPERATING_INSTITUTION, FLOAT_OWNER]
+      description: "Use fuzzy matching for names to handle variations"
+      sample_query: |
+        -- Example using fuzzy matching for PI name
+        SELECT * FROM float 
+        WHERE similarity(LOWER(PI_NAME), LOWER('xavier capet')) > 0.8
+        
+    - type: substring
+      fields: [DEPLOYMENT_CRUISE_ID, STATION_PARAMETERS]
+      description: "Use substring matching for partial text matches"
+      sample_query: |
+        -- Example for partial cruise ID match
+        SELECT * FROM float 
+        WHERE DEPLOYMENT_CRUISE_ID ILIKE '%PIRATA%'
+  
+  date_formats:
+    - fields: [LAUNCH_DATE, START_DATE, END_MISSION_DATE]
+      format: "YYYYMMDDHHMMSS"
+      description: "Format dates as YYYYMMDDHHMMSS for comparison"
+      sample_query: |
+        -- Example date range query
+        SELECT * FROM float 
+        WHERE CAST(LAUNCH_DATE AS TIMESTAMP) 
+        BETWEEN '2021-01-01' AND '2021-12-31'go Float Database Semantic Model - Efficient Structure
