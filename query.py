@@ -1,9 +1,16 @@
 import google.generativeai as genai
 import yaml
 import duckdb
+from dotenv import load_dotenv
+import os
+
+# Load environment variables
+load_dotenv()
 
 # Configure Gemini API
-GOOGLE_API_KEY = ""  # Replace with your actual API key
+GOOGLE_API_KEY = os.getenv('GOOGLE_API_KEY')
+if not GOOGLE_API_KEY:
+    raise ValueError("GOOGLE_API_KEY not found in environment variables")
 genai.configure(api_key=GOOGLE_API_KEY)
 
 def load_semantic_model():
