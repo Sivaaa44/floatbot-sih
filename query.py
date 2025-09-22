@@ -62,22 +62,146 @@ Formatting & style:
 # Helpers: build digest & fallback summary
 # ---------------------------
 
-# This function is no longer needed since we're not using DataFrames
+# Oceanographic data analysis and reporting functions
 
 
 def create_text_report(question: str, results, headers):
     """
-    Create a natural, conversational oceanographic report.
+    Create a comprehensive oceanographic analysis report.
     """
+    # Initialize output lines
     lines = []
     
-    # Analyze what type of data we have
-    question_lower = question.lower()
+    # Extract key dimensions
     total_records = len(results)
+    question_lower = question.lower()
     
-    # Start with a natural introduction
-    if 'float' in question_lower and ('all' in question_lower or 'data' in question_lower):
-        lines.append(f"Currently, there are **{total_records} Argo floats** in the database.")
+    # Setup column indices for faster access
+    col_indices = {col: idx for idx, col in enumerate(headers)}
+    
+    # 1. Basic Coverage Analysis
+    if 'FLOAT_ID' in col_indices:
+        float_id_idx = col_indices['FLOAT_ID']
+        unique_floats = {row[float_id_idx] for row in results if row[float_id_idx] is not None}
+        float_count = len(unique_floats)
+        
+        if float_count == 1:
+            float_id = next(iter(unique_floats))
+            lines.append(f"📊 Analyzing Float **{float_id}**")
+        else:
+            lines.append(f"📊 Analyzing **{float_count} float{'s' if float_count > 1 else ''}**")
+    
+    if 'PROFILE_NUMBER' in col_indices:
+        profile_idx = col_indices['PROFILE_NUMBER']
+        profile_pairs = {(row[float_id_idx], row[profile_idx]) 
+                        for row in results 
+                        if 'FLOAT_ID' in col_indices
+                        and row[float_id_idx] is not None 
+                        and row[profile_idx] is not None}
+        profile_count = len(profile_pairs)
+        
+        if profile_count == 1:
+            profile_num = next(iter(profile_pairs))[1]
+            lines.append(f"🌊 Examining Profile **#{profile_num}**")
+        else:
+            lines.append(f"🌊 Covering **{profile_count} profile{'s' if profile_count > 1 else ''}**")
+    
+    lines.append(f"📈 Total measurements: **{total_records}**\n")
+    
+    # 2. Project and Platform Analysis
+    if 'PROJECT_NAME' in col_indices:
+        proj_idx = col_indices['PROJECT_NAME']
+        projects = list({row[proj_idx] for row in results if row[proj_idx] is not None})
+        
+        if projects:
+            if len(projects) == 1:
+                lines.append(f"🏢 Project: **{projects[0]}**")
+            else:
+                main_projects = projects[:3]
+                lines.append(f"🏢 Projects: **{len(projects)}** total ({', '.join(main_projects)})")
+    
+    # 3. Temperature Profile Analysis
+    if 'TEMP' in col_indices and 'PRES' in col_indices:
+        temp_idx = col_indices['TEMP']
+        pres_idx = col_indices['PRES']
+        
+        # Group by pressure levels
+        temp_data = []
+        for row in results:
+            if row[temp_idx] is not None and row[pres_idx] is not None:
+                try:
+                    temp_data.append((float(row[pres_idx]), float(row[temp_idx])))
+                except (ValueError, TypeError):
+                    continue
+        
+        if temp_data:
+            temp_data.sort()  # Sort by pressure (depth)
+            
+            # Basic statistics
+            surface_data = [(p, t) for p, t in temp_data if p <= 50]
+            thermocline_data = [(p, t) for p, t in temp_data if 50 <= p <= 300]
+            deep_data = [(p, t) for p, t in temp_data if p > 1000]
+            
+            lines.append("\n### 🌡️ Temperature Profile")
+            
+            # Surface layer
+            if surface_data:
+                surface_temps = [t for _, t in surface_data]
+                lines.append(f"**Surface Layer** (0-50m):")
+                lines.append(f"- Range: {min(surface_temps):.2f}°C to {max(surface_temps):.2f}°C")
+                lines.append(f"- Average: {sum(surface_temps)/len(surface_temps):.2f}°C")
+            
+            # Thermocline
+            if len(thermocline_data) >= 2:
+                temp_change = thermocline_data[-1][1] - thermocline_data[0][1]
+                depth_change = thermocline_data[-1][0] - thermocline_data[0][0]
+                gradient = temp_change / depth_change
+                lines.append(f"\n**Thermocline** (50-300m):")
+                lines.append(f"- Temperature gradient: {gradient:.3f}°C/m")
+                lines.append(f"- {'Strong' if abs(gradient) > 0.01 else 'Weak'} thermal stratification")
+            
+            # Deep water
+            if deep_data:
+                deep_temps = [t for _, t in deep_data]
+                lines.append(f"\n**Deep Layer** (>1000m):")
+                lines.append(f"- Range: {min(deep_temps):.2f}°C to {max(deep_temps):.2f}°C")
+    
+    # 4. Quality Control
+    qc_cols = [col for col in headers if col.endswith('_QC')]
+    if qc_cols:
+        lines.append("\n### 🎯 Data Quality")
+        for col in qc_cols:
+            qc_idx = col_indices[col]
+            good_qc = sum(1 for row in results if row[qc_idx] in ['1', '2'])
+            qc_pct = (good_qc / total_records) * 100 if total_records > 0 else 0
+            param = col.replace('_QC', '')
+            lines.append(f"- {param}: **{qc_pct:.1f}%** good quality")
+    
+    # 5. Context-based Summary
+    lines.append("\n### 💡 Analysis Notes")
+    if total_records == 0:
+        lines.append("⚠️ No data found matching the query criteria.")
+    elif total_records < 10:
+        lines.append("⚠️ Limited data points available - consider expanding search criteria.")
+    elif 'FLOAT_ID' in col_indices and 'PROFILE_NUMBER' in col_indices:
+        if float_count == 1 and profile_count == 1:
+            lines.append("📍 Detailed single profile analysis")
+            if 'PRES' in col_indices:
+                max_depth = max(float(row[col_indices['PRES']]) 
+                              for row in results 
+                              if row[col_indices['PRES']] is not None)
+                lines.append(f"📊 Profile depth coverage: **{max_depth:.0f}** dbar")
+    
+    # 6. Final Data Quality Statement
+    if qc_cols:
+        all_good = all(row[col_indices[col]] in ['1', '2'] 
+                      for row in results 
+                      for col in qc_cols 
+                      if col in col_indices)
+        if all_good:
+            lines.append("\n✅ All measurements pass quality control checks.")
+        else:
+            lines.append("\n⚠️ Some measurements may have quality issues - check QC flags.")
         lines.append("")
         
         # Analyze projects
@@ -218,15 +342,15 @@ def create_text_report(question: str, results, headers):
             for var in measurement_vars:
                 lines.append(f"- **{var_descriptions.get(var, var)}**")
     
-    # Add a conclusion with oceanographic context
-    lines.append("")
-    lines.append("---")
-    if total_records > 100:
-        lines.append("This represents a **substantial dataset** suitable for comprehensive oceanographic analysis including spatial patterns, temporal trends, and water mass characterization.")
-    elif total_records > 20:
-        lines.append("This **moderate-sized dataset** provides good coverage for regional oceanographic analysis and quality assessment.")
-    else:
-        lines.append("This **focused dataset** is ideal for detailed examination of individual float performance and local oceanographic conditions.")
+    # Add dataset size context
+    if total_records > 0:
+        lines.append("\n### 📈 Dataset Coverage")
+        if total_records > 100:
+            lines.append("This substantial dataset is suitable for comprehensive oceanographic analysis.")
+        elif total_records > 20:
+            lines.append("This moderate-sized dataset provides good coverage for profile analysis.")
+        else:
+            lines.append("This focused dataset provides detailed insight into specific measurements.")
     
     return "\n".join(lines)
 
@@ -380,14 +504,42 @@ def execute_query(sql):
 
 def analyze_results_with_free_llm(question: str, results, headers):
     """
-    Create a human-readable oceanographic report from SQL results without DataFrames.
+    Create a human-readable oceanographic report from SQL results with proper context.
     """
-    # Basic validation
     if not results or not headers or ("Error" in headers[0]):
         return "## Analysis Results\n\nNo valid results to analyze."
-
-    # Create simple text-based report
-    return create_text_report(question, results, headers)
+    
+    # Get column indices for key metrics
+    col_indices = {col: idx for idx, col in enumerate(headers)}
+    
+    # Extract key dimensions
+    total_records = len(results)
+    float_count = len({row[col_indices['FLOAT_ID']] 
+                      for row in results 
+                      if 'FLOAT_ID' in col_indices 
+                      and row[col_indices['FLOAT_ID']] is not None})
+    
+    profile_count = len({(row[col_indices['FLOAT_ID']], row[col_indices['PROFILE_NUMBER']]) 
+                        for row in results 
+                        if 'FLOAT_ID' in col_indices and 'PROFILE_NUMBER' in col_indices 
+                        and row[col_indices['FLOAT_ID']] is not None 
+                        and row[col_indices['PROFILE_NUMBER']] is not None})
+    
+    # Create proper analysis
+    report = create_text_report(question, results, headers)
+    
+    # Add analysis confidence based on data quality
+    if float_count == 1 and profile_count == 1:
+        qc_cols = [col for col in headers if col.endswith('_QC')]
+        good_data = all(any(row[col_indices[col]] in ['1', '2'] for col in qc_cols)
+                       for row in results if all(col in col_indices for col in qc_cols))
+        
+        if good_data:
+            report += "\n\n💡 **Data Quality Note:** All measurements pass quality control checks."
+        else:
+            report += "\n\n⚠️ **Data Quality Note:** Some measurements may have quality issues. Check QC flags."
+    
+    return report
 
 
 def orchestrator(user_question):
