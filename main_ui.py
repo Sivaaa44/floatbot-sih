@@ -54,7 +54,7 @@ def main():
                     if content.chart_config:
                         chart = ui.create_chart(df, content.chart_config)
                         if chart:
-                            st.plotly_chart(chart, use_container_width=True)
+                            st.plotly_chart(chart, use_container_width=True, key=f"main_chart_{i}")
                     
                     # Show data table
                     st.dataframe(df.head(50))
@@ -62,7 +62,7 @@ def main():
                     # Allow custom chart creation
                     custom_chart = ui.create_custom_chart_selector(df, i)
                     if custom_chart:
-                        st.plotly_chart(custom_chart, use_container_width=True)
+                        st.plotly_chart(custom_chart, use_container_width=True, key=f"custom_chart_{i}")
                     
                     # Add download button
                     ui.create_download_button(df, i)

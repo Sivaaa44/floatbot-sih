@@ -2,16 +2,14 @@ from models import OceanographicResponse
 from config import config
 from database import DatabaseManager
 from sql_generator import SQLGenerator
-from data_analyzer import DataAnalyzer
-from response_generator import ResponseGenerator
+from llm_analyzer import LLMAnalyzer  # Changed to use LLMAnalyzer
 from chart_analyzer import ChartAnalyzer
 
 class OrchestratorService:
     def __init__(self):
         self.db_manager = DatabaseManager()
         self.sql_generator = SQLGenerator()
-        self.data_analyzer = DataAnalyzer()
-        self.response_generator = ResponseGenerator()
+        self.analyzer = LLMAnalyzer()  # Using LLMAnalyzer instead of DataAnalyzer
         self.chart_analyzer = ChartAnalyzer()
         self._semantic_model = None
     
@@ -25,7 +23,8 @@ class OrchestratorService:
         try:
             sql = self.sql_generator.generate_sql(user_question, self.semantic_model)
             query_result = self.db_manager.execute_query(sql)
-            
+            print(f"Query Result: {query_result}")
+            print("+" * 100)
             if not query_result.success:
                 return OceanographicResponse(
                     question=user_question, sql=sql, results=query_result.data,
@@ -33,8 +32,15 @@ class OrchestratorService:
                     chart_config=None, success=False, error=query_result.error
                 )
             
-            analysis = self.data_analyzer.analyze_data(user_question, query_result)
-            text_response = self.response_generator.generate_response(user_question, analysis)
+            # Use LLM analyzer for both analysis and response generation
+            analysis_result = self.analyzer.analyze_data(user_question, query_result)
+            print(f"Analysis Result: {analysis_result}")
+            print("+" * 100)
+            
+            # The insights from LLM are already in natural language format
+            text_response = "\n\n".join(analysis_result.key_insights)
+            print(f"Text Response: {text_response}")
+            
             chart_config = self.chart_analyzer.suggest_chart(user_question, query_result)
             
             return OceanographicResponse(
