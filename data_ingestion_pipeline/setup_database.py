@@ -1,8 +1,14 @@
 import duckdb
 import os
 
+# Set up paths
+current_dir = os.path.dirname(os.path.abspath(__file__))
+parent_dir = os.path.dirname(current_dir)
+csv_dir = os.path.join(parent_dir, "csv_files")
+db_path = os.path.join(parent_dir, "argo_floats.db")
+
 # Initialize DuckDB connection
-conn = duckdb.connect('argo_floats.db')
+conn = duckdb.connect(db_path)
 
 # Create tables and import data from CSVs
 try:
@@ -32,7 +38,8 @@ try:
         )
     """)
     # Load data directly into float table
-    conn.execute("COPY float FROM 'FLOAT.csv' (DELIMITER ',', HEADER TRUE, NULL_PADDING TRUE, QUOTE '\"', NULL '');")
+    float_csv = os.path.join(csv_dir, "FLOAT.csv")
+    conn.execute(f"COPY float FROM '{float_csv}' (DELIMITER ',', HEADER TRUE, NULL_PADDING TRUE, QUOTE '\"', NULL '');")
 
     # Create and load PROFILES table
     conn.execute("""
@@ -53,7 +60,8 @@ try:
             FOREIGN KEY (FLOAT_ID) REFERENCES float(FLOAT_ID)
         )
     """)
-    conn.execute("COPY profiles FROM 'PROFILES.csv' (DELIMITER ',', HEADER TRUE, NULL_PADDING TRUE, QUOTE '\"', NULL '');")
+    profiles_csv = os.path.join(csv_dir, "PROFILES.csv")
+    conn.execute(f"COPY profiles FROM '{profiles_csv}' (DELIMITER ',', HEADER TRUE, NULL_PADDING TRUE, QUOTE '\"', NULL '');")
 
     # Create and load MEASUREMENTS table
     conn.execute("""
@@ -76,7 +84,8 @@ try:
             FOREIGN KEY (FLOAT_ID, PROFILE_NUMBER) REFERENCES profiles(FLOAT_ID, PROFILE_NUMBER)
         )
     """)
-    conn.execute("COPY measurements FROM 'MEASUREMENTS.csv' (DELIMITER ',', HEADER TRUE, NULL_PADDING TRUE, QUOTE '\"', NULL '');")
+    measurements_csv = os.path.join(csv_dir, "MEASUREMENTS.csv")
+    conn.execute(f"COPY measurements FROM '{measurements_csv}' (DELIMITER ',', HEADER TRUE, NULL_PADDING TRUE, QUOTE '\"', NULL '');")
 
     print("Database setup completed successfully!")
 

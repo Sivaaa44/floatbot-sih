@@ -4,6 +4,7 @@ Optimized Multi-Float Argo Data Extractor
 Based on actual data structure analysis - uses prof.nc files efficiently
 """
 
+import os
 from argopy import gdacfs
 import pandas as pd
 import numpy as np
@@ -283,12 +284,17 @@ def save_to_csv_files(all_float_metadata, all_profile_data, all_measurements):
     print(f"\n💾 SAVING DATA TO CSV FILES")
     print("=" * 80)
     
+    # Ensure the csv_files directory exists
+    csv_dir = "../csv_files"
+    os.makedirs(csv_dir, exist_ok=True)
+    
     files_created = []
     
     # Save FLOAT.csv
     if all_float_metadata:
         df_floats = pd.DataFrame(all_float_metadata)
-        df_floats.to_csv("FLOAT.csv", index=False)
+        float_path = os.path.join(csv_dir, "FLOAT.csv")
+        df_floats.to_csv(float_path, index=False)
         files_created.append(f"FLOAT.csv ({len(df_floats)} floats)")
         print(f"✅ FLOAT.csv saved: {len(df_floats)} floats")
         
@@ -302,7 +308,8 @@ def save_to_csv_files(all_float_metadata, all_profile_data, all_measurements):
     # Save PROFILES.csv  
     if all_profile_data:
         df_profiles = pd.DataFrame(all_profile_data)
-        df_profiles.to_csv("PROFILES.csv", index=False)
+        profiles_path = os.path.join(csv_dir, "PROFILES.csv")
+        df_profiles.to_csv(profiles_path, index=False)
         files_created.append(f"PROFILES.csv ({len(df_profiles)} profiles)")
         print(f"\n✅ PROFILES.csv saved: {len(df_profiles)} profiles")
         
@@ -316,7 +323,8 @@ def save_to_csv_files(all_float_metadata, all_profile_data, all_measurements):
     # Save MEASUREMENTS.csv
     if all_measurements:
         df_measurements = pd.DataFrame(all_measurements)
-        df_measurements.to_csv("MEASUREMENTS.csv", index=False)
+        measurements_path = os.path.join(csv_dir, "MEASUREMENTS.csv")
+        df_measurements.to_csv(measurements_path, index=False)
         files_created.append(f"MEASUREMENTS.csv ({len(df_measurements)} measurements)")
         print(f"\n✅ MEASUREMENTS.csv saved: {len(df_measurements)} measurements")
         
