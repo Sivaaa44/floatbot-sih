@@ -102,7 +102,8 @@ Generate only the SQL query without any explanations. The query should be valid 
             self._system_prompt = self.create_system_prompt(semantic_model)
         
         full_prompt = f"{self._system_prompt}\n\nUser Question: {question}\n\nGenerate a valid DuckDB SQL query. Return ONLY SQL."
-
+        print(f"full_prompt : {full_prompt}")
+        print("+" * 100)
         try:
             response = self.model.generate_content(full_prompt)
             sql = response.text.strip()
