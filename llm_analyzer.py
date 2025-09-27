@@ -2,28 +2,31 @@ import os
 from typing import List, Dict, Optional, Tuple
 import google.generativeai as genai
 from models import QueryResult, AnalysisResult
-
-ANALYSIS_SYSTEM_PROMPT = """
+from dotenv import load_dotenv
+load_dotenv()
+RESEARCH_MODE_PROMPT = """
 You are an expert oceanographic analyst providing clear, concise insights about Argo float data. 
 
 RESPONSE STYLE:
 - Be direct and to the point
-- Use natural, conversational language
-- Mention specific values and IDs
-- Avoid technical jargon unless necessary
-- Keep responses to 2-3 sentences unless more detail is explicitly needed
-- No need to explain methodology or limitations unless specifically asked
+- Very technical and precise
+- Include exact numeric values, statistics, and IDs
+- Reference QC flags and data reliability
+- Mention temporal or spatial trends
+- Use scientific terminology appropriately
+- 3-5 detailed sentences unless brevity is requested
 
 KNOWLEDGE BASE:
 - Floats collect temperature (°C), salinity (PSU), and pressure (dbar) data
-- Good quality data has QC flags 1 or 2
+- QC flags 1 or 2 indicate reliable data
 - Surface: 0-50 dbar
 - Thermocline: 10-300 dbar
 - Deep ocean: 1000+ dbar
+- Include statistical summaries, min/max/avg, counts, and trends- Include statistical summaries, min/max/avg, counts, and trends
 
 FORMAT YOUR RESPONSE AS:
-1. Direct answer to the question
-2. ONE relevant additional insight (if available)
+1. Direct, technical answer
+2. Additional observations or patterns
 3. Brief quality note (only if data quality issues exist)
 
 Data provided will include:
@@ -35,7 +38,27 @@ Data provided will include:
 
 Generate a natural, informative response that directly answers the user's question while providing relevant context and insights from the data.
 """
+EXPLORE_MODE_PROMPT = """
+You are an oceanography science explainer for students or non-technical users.
 
+RESPONSE STYLE:
+- Friendly, conversational, easy-to-understand
+- Use analogies, examples, and simple explanations
+- Highlight key observations clearly
+- Avoid heavy jargon
+- 2-3 sentences unless more explanation is needed
+
+KNOWLEDGE BASE:
+- Floats measure temperature (°C), salinity (PSU), pressure (dbar)
+- Surface: 0-50 dbar, Thermocline: 10-300 dbar, Deep: 1000+ dbar
+- Data quality flags: 1 or 2 = good, explain simply if issues exist
+- Include trends, patterns, or notable observations in plain language
+
+FORMAT RESPONSE:
+1. Direct answer
+2. One extra interesting insight or fun fact
+3. Brief note if data quality is low
+"""
 class LLMAnalyzer:
     def __init__(self):
         # Configure Gemini (or your chosen LLM)
@@ -45,24 +68,26 @@ class LLMAnalyzer:
         genai.configure(api_key=GOOGLE_API_KEY)
         self.model = genai.GenerativeModel('gemini-2.0-flash-exp')
 
-    def analyze_data(self, question: str, query_result: QueryResult) -> AnalysisResult:
+
+    def analyze_data(self, question: str, query_result: QueryResult, mode: str = "research") -> AnalysisResult:
         """
         Analyze query results using LLM and generate insights
         """
         if not query_result.success or not query_result.data:
             return AnalysisResult(0, 0, 0, key_insights=["No data available for analysis"])
-
+        mode = mode.lower()
+        if mode == "research":
+         system_prompt = RESEARCH_MODE_PROMPT
+        else:
+         system_prompt = EXPLORE_MODE_PROMPT
         # Calculate basic statistics
         stats = self._calculate_basic_stats(query_result)
         
         # Prepare data for LLM analysis
         analysis_prompt = self._prepare_analysis_prompt(question, query_result, stats)
-        
         try:
             # Generate analysis using LLM
-            response = self.model.generate_content(
-                [analysis_prompt, ANALYSIS_SYSTEM_PROMPT]
-            )
+            response = self.model.generate_content([analysis_prompt, system_prompt])
             insights = self._parse_llm_response(response.text)
         except Exception as e:
             insights = [f"Error generating analysis: {str(e)}"]

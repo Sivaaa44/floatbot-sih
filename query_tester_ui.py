@@ -18,9 +18,13 @@ def main():
     st.sidebar.write(f"Database path: {db_path}")
     st.sidebar.write(f"Database exists: {os.path.exists(db_path)}")
 
+    # Mode selection
+    mode = st.sidebar.radio("Select Mode", ["research", "explore"])
+    st.sidebar.info(f"Selected mode: {mode}")
+
     # Initialize database manager with error handling
     try:
-        db = DatabaseManager()
+        db = DatabaseManager(mode=mode)
         st.sidebar.success("Database connected successfully!")
     except Exception as e:
         st.sidebar.error(f"Database connection failed: {str(e)}")

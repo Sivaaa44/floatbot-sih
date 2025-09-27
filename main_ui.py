@@ -1,18 +1,27 @@
 import streamlit as st
 import pandas as pd
-from orchestrator import orchestrator
+from orchestrator import OrchestratorService
 from models import ChartConfig
 from ui_components import UIComponents
 
 def main():
     st.set_page_config(page_title="Argo Oceanographic Analyst", page_icon="🌊", layout="wide")
     st.title("🌊 Argo Oceanographic Analyst")
+    orchestrator = OrchestratorService()
     
     # Initialize UI components
     ui = UIComponents()
     
     # Show sidebar information
     ui.show_sidebar_info()
+        
+    # Sidebar: select LLM mode
+    mode = st.sidebar.selectbox(
+        "Select LLM Analysis Mode",
+        ["Research", "Explore"],
+        index=0
+    )
+    st.sidebar.markdown(f"**Current Mode:** {mode}")
     
     # Show example questions
     ui.show_example_questions()
@@ -24,7 +33,7 @@ def main():
         st.session_state.chat_history.append(("user", user_input))
         
         with st.spinner("Processing..."):
-            response = orchestrator.process_question(user_input)
+            response = orchestrator.process_question(user_input, mode.lower())
         
         st.session_state.chat_history.append(("assistant", response))
     

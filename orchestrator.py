@@ -19,7 +19,11 @@ class OrchestratorService:
             self._semantic_model = config.load_semantic_model()
         return self._semantic_model
     
-    def process_question(self, user_question: str) -> OceanographicResponse:
+    def process_question(self, user_question: str, mode: str = "research") -> OceanographicResponse:
+        """
+        Process user question and return an OceanographicResponse.
+        mode: "research" or "explore" (affects LLM analysis style)
+        """
         try:
             sql = self.sql_generator.generate_sql(user_question, self.semantic_model)
             query_result = self.db_manager.execute_query(sql)
@@ -33,7 +37,7 @@ class OrchestratorService:
                 )
             
             # Use LLM analyzer for both analysis and response generation
-            analysis_result = self.analyzer.analyze_data(user_question, query_result)
+            analysis_result = self.analyzer.analyze_data(user_question, query_result, mode=mode)
             print(f"Analysis Result: {analysis_result}")
             print("+" * 100)
             
@@ -55,4 +59,3 @@ class OrchestratorService:
                 success=False, error=str(e)
             )
 
-orchestrator = OrchestratorService()

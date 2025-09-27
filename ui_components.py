@@ -9,6 +9,19 @@ from models import OceanographicResponse, ChartConfig
 
 class UIComponents:
     @staticmethod
+    def select_mode():
+        """Sidebar mode selector"""
+        with st.sidebar:
+            st.header("Select Mode")
+            if "mode" not in st.session_state:
+                st.session_state.mode = "explore"  # default
+            st.session_state.mode = st.radio(
+                "Choose analysis mode:",
+                options=["explore", "research"],
+                index=0
+            )
+            st.markdown(f"**Current Mode:** `{st.session_state.mode}`")
+    @staticmethod
     def show_oceanographic_contexts(question: str) -> List[str]:
         if not question:
             return ['general']
