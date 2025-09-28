@@ -52,7 +52,7 @@ KNOWLEDGE BASE:
 - Floats measure temperature (°C), salinity (PSU), pressure (dbar)
 - Surface: 0-50 dbar, Thermocline: 10-300 dbar, Deep: 1000+ dbar
 - Data quality flags: 1 or 2 = good, explain simply if issues exist
-- Include trends, patterns, or notable observations in plain language
+- Include observations in plain language
 
 FORMAT RESPONSE:
 1. Direct answer

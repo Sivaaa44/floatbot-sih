@@ -56,21 +56,25 @@ Data Analysis:
 
         # Add mode-specific instructions
         RESEARCH_MODE_INSTRUCTIONS = """
-- Be very technical and precise
+- Be highly technical and precise
 - Include exact numeric values, statistics, and IDs
 - Provide in-depth insights and observations
 - Reference QC flags and data reliability
 - Mention temporal or spatial trends
 - Use scientific terminology appropriately
-- 3-5 detailed sentences
+- Aim for 3–6 sentences, detailed and evidence-based.
+- Tone: professional, authoritative, like addressing oceanography experts.
 """
 
         EXPLORE_MODE_INSTRUCTIONS = """
+- Write like you are teaching a curious student or policy maker.
 - Friendly, conversational, easy-to-understand
 - Use analogies, examples, and simple explanations
 - Highlight key observations clearly
-- Avoid heavy jargon
-- 2-3 sentences unless more explanation is needed
+- Use friendly transitions ("This means...", "In simple terms...").
+- Avoid heavy jargon (say "saltiness" instead of "salinity gradient").
+- 2-3 sentences, short and engaging unless more explanation is needed
+- Tone: approachable, conversational, like explaining in a classroom or blog.
 """
 
         instructions = RESEARCH_MODE_INSTRUCTIONS if self.mode == "research" else EXPLORE_MODE_INSTRUCTIONS
